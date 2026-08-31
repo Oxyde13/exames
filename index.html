@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Treino — Exame de Segurança Básica</title>
+  <meta name="theme-color" content="#0b3d63" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-logo" aria-hidden="true">🛟</span>
+      <div class="brand-text">
+        <strong>Treino de Segurança Básica</strong>
+        <small>Exame de marinheiro · STCW A-VI/1</small>
+      </div>
+    </div>
+    <button id="themeToggle" class="icon-btn" type="button" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+  </header>
+
+  <main class="wrap">
+
+    <!-- ========== ECRÃ INICIAL ========== -->
+    <section id="screen-start" class="screen">
+      <div id="retomar" class="card retomar hidden">
+        <div class="retomar-info">
+          <strong>▶ Tens um teste a meio</strong>
+          <span id="retomarDetalhe" class="muted small"></span>
+        </div>
+        <div class="retomar-actions">
+          <button id="btnContinuar" class="btn btn-primary" type="button">Continuar</button>
+          <button id="btnDescartar" class="btn btn-ghost btn-sm" type="button">Descartar</button>
+        </div>
+      </div>
+
+      <div class="card hero">
+        <h1>Pronto para treinar?</h1>
+        <p class="muted">Escolhe a matéria e o número de perguntas. Respondes uma a uma e vês logo a resposta certa. Podes voltar atrás para rever e retomar um teste a meio. No fim vês quantas acertaste à primeira.</p>
+
+        <div class="field">
+          <label for="selCategoria">Matéria</label>
+          <select id="selCategoria"></select>
+        </div>
+
+        <div class="field">
+          <label for="selNumero">Número de perguntas</label>
+          <select id="selNumero">
+            <option value="10">10 perguntas</option>
+            <option value="20" selected>20 perguntas</option>
+            <option value="40">40 perguntas</option>
+            <option value="0">Todas</option>
+          </select>
+        </div>
+
+        <div class="toggles">
+          <label class="switch">
+            <input type="checkbox" id="chkBaralhar" checked />
+            <span>Baralhar as perguntas</span>
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="chkBaralharOpcoes" checked />
+            <span>Baralhar as opções</span>
+          </label>
+        </div>
+
+        <button id="btnIniciar" class="btn btn-primary btn-block" type="button">Iniciar teste</button>
+      </div>
+
+      <div id="historico" class="card historico hidden">
+        <h2>Últimos testes</h2>
+        <ul id="historicoLista"></ul>
+        <button id="btnLimparHistorico" class="btn btn-ghost btn-sm" type="button">Limpar histórico</button>
+      </div>
+    </section>
+
+    <!-- ========== ECRÃ DE TESTE ========== -->
+    <section id="screen-quiz" class="screen hidden">
+      <div class="quiz-head">
+        <div class="quiz-head-row">
+          <button id="btnTerminar" class="btn-terminar" type="button">✕ Terminar teste</button>
+          <div class="scoreboard">
+            <span class="pill pill-ok" title="Acertadas à primeira"><b id="scoreCertas">0</b> certas</span>
+            <span class="pill pill-bad" title="Falhadas pelo menos uma vez"><b id="scoreErradas">0</b> erradas</span>
+          </div>
+        </div>
+        <div class="progress-row">
+          <span id="progressLabel" class="progress-label">1 / 20</span>
+        </div>
+        <div class="progress-track"><div id="progressBar" class="progress-fill"></div></div>
+      </div>
+
+      <div class="card quiz-card">
+        <div class="quiz-card-top">
+          <span id="qCategoria" class="tag"></span>
+          <span id="qNumero" class="q-num" title="Número da pergunta"></span>
+        </div>
+        <h2 id="qEnunciado" class="enunciado"></h2>
+        <figure id="qFiguraWrap" class="figura hidden">
+          <img id="qFigura" alt="Imagem da pergunta" />
+        </figure>
+        <div id="opcoes" class="opcoes"></div>
+        <p id="feedback" class="feedback" aria-live="polite"></p>
+        <p id="qNota" class="nota hidden"></p>
+      </div>
+
+      <div id="quizFoot" class="quiz-foot">
+        <button id="btnAnterior" class="btn btn-ghost hidden" type="button">‹ Anterior</button>
+        <button id="btnProxima" class="btn btn-primary hidden" type="button">Próxima pergunta</button>
+      </div>
+    </section>
+
+    <!-- ========== ECRÃ DE RESULTADOS ========== -->
+    <section id="screen-results" class="screen hidden">
+      <div class="card result-card">
+        <div id="resultEmoji" class="result-emoji">🎯</div>
+        <h1 id="resultTitulo">Resultado</h1>
+        <p id="resultSub" class="muted"></p>
+
+        <div class="result-grid">
+          <div class="stat stat-ok"><b id="resCertas">0</b><span>Certas</span></div>
+          <div class="stat stat-bad"><b id="resErradas">0</b><span>Erradas</span></div>
+          <div class="stat"><b id="resRespondidas">0</b><span>Respondidas</span></div>
+          <div class="stat"><b id="resPercent">0%</b><span>Acerto</span></div>
+        </div>
+
+        <div class="result-bar-track"><div id="resultBar" class="result-bar-fill"></div></div>
+        <p id="resDetalhe" class="muted small"></p>
+
+        <div class="result-actions">
+          <button id="btnRecomecar" class="btn btn-primary btn-block" type="button">Novo teste</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <span id="footTotal"></span> · Feito para treinar · sem login, sem dados enviados
+  </footer>
+
+  <!-- Diálogo de confirmação para terminar o teste -->
+  <div id="modalTerminar" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>Terminar o teste?</h3>
+      <p class="muted">Vais ver o resultado até aqui. Podes retomar este teste mais tarde a partir do ecrã inicial.</p>
+      <div class="modal-actions">
+        <button id="btnModalCancelar" class="btn btn-ghost" type="button">Continuar a responder</button>
+        <button id="btnModalConfirmar" class="btn btn-primary" type="button">Terminar teste</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
