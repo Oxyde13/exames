@@ -1,7 +1,10 @@
-# Treino — Exame de Segurança Básica (marítimo)
+# RadarVirtual — Treino de Marinheiro com Segurança Básica
 
 Aplicação web simples e responsive para treinar para o exame de marinheiro
-(Segurança Básica, STCW A-VI/1). Sem login, sem servidor, sem dados enviados.
+(Segurança Básica, STCW A-VI/1), da **Escola de Formação Náutica RadarVirtual**
+([radarvirtual.pt](https://radarvirtual.pt)). Sem login, sem servidor, sem dados enviados.
+As perguntas estão **encriptadas** e só abrem com um PIN — ver
+[Protecção por PIN](#protecção-por-pin).
 
 ## Como abrir
 
@@ -16,6 +19,10 @@ python3 -m http.server 8000
 ```
 
 E abre `http://localhost:8000` no browser.
+
+Em qualquer dos casos aparece primeiro o ecrã do PIN. Com **Lembrar neste
+dispositivo** ligado, só o escreves uma vez por telemóvel/computador; o botão **🔒**
+no topo volta a bloquear.
 
 ## Como funciona
 
@@ -33,29 +40,77 @@ E abre `http://localhost:8000` no browser.
 Extras: filtrar por matéria, baralhar perguntas/opções, histórico dos últimos
 testes (guardado só no teu browser) e tema claro/escuro (botão 🌙 no topo).
 
-## Matérias incluídas (185 perguntas)
+## Matérias incluídas (187 perguntas)
 
 | Matéria | Perguntas |
 |---|---|
 | Incêndios · PCI (A-VI/1.2) | 91 |
-| Sobrevivência (A-VI/1.1) | 27 |
-| Segurança Pessoal (A-VI/1.4) | 28 |
-| Prevenção de Assédio (SPRS) | 10 |
+| Sobrevivência (A-VI/1.1) | 29 |
+| Responsabilidades Sociais (A-VI/1.4) | 38 |
 | Primeiros Socorros (A-VI/1.3) | 29 |
+
+## Protecção por PIN
+
+O site é estático e público, por isso um PIN comparado em JavaScript não protegeria
+nada — bastava abrir o ficheiro das perguntas pelo URL. Em vez disso, **o conteúdo é
+que está cifrado**:
+
+- `private/questions.json` e `private/images/` — o conteúdo em claro. **Nunca vão para
+  o Git** (estão no `.gitignore`); vivem só no teu computador.
+- `content.enc.js` — o que é publicado: perguntas e imagens cifradas com **AES-256-GCM**,
+  com a chave derivada do PIN por **PBKDF2-SHA256 (1 milhão de iterações)**.
+- O PIN não está guardado em lado nenhum, nem sequer um resumo dele: se a
+  desencriptação falhar, o PIN estava errado.
+- "Lembrar neste dispositivo" guarda a chave já derivada no IndexedDB do browser, marcada
+  como não-extraível — o PIN nunca é guardado e nem o próprio JavaScript consegue ler a
+  chave, só usá-la.
+
+### Mudar o PIN, ou publicar alterações
+
+```bash
+node tools/pack.js          # pede o PIN (duas vezes) e gera o content.enc.js
+git add content.enc.js && git commit -m "Update content" && git push
+```
+
+Correr o script com outro PIN muda o PIN para toda a gente. Quem tinha "Lembrar neste
+dispositivo" vê a mensagem *"O PIN mudou. Escreve o novo."*
+
+Se perderes o `private/questions.json`, recupera-o com o PIN:
+
+```bash
+node tools/pack.js --unpack
+```
+
+### Até onde isto protege
+
+Protege contra quem chega ao site ou ao repositório: não há forma de ler as perguntas
+sem o PIN. **Não** protege contra alguém determinado: um PIN de 6 dígitos são só um
+milhão de hipóteses e, com uma boa placa gráfica, dá para as experimentar todas ao
+ficheiro cifrado em minutos a horas. Cada dígito a mais multiplica esse tempo por 10 —
+o `tools/pack.js` aceita PIN de qualquer comprimento. Nota ainda que o conteúdo que
+esteve publicado em claro antes desta mudança continua no histórico do Git.
+
+Se um dia precisares de protecção a sério, o passo seguinte é alojar o site atrás de
+autenticação de servidor (por exemplo Cloudflare Pages + Cloudflare Access, gratuito
+até 50 utilizadores).
 
 ## Ficheiros
 
 - `index.html` — a página
-- `style.css` — o aspeto
+- `style.css` — o aspeto (cores da escola: roxo `#6a1856` e teal `#116f88`)
 - `app.js` — a lógica do teste
-- `questions.js` — **as perguntas e respostas** (é o que a app lê)
-- `questions.json` — a mesma informação em formato legível (cópia de referência)
-- `images/` — imagens das perguntas com símbolos
+- `auth.js` — o ecrã do PIN e a desencriptação
+- `content.enc.js` — **as perguntas e as imagens, cifradas** (é o que a app lê)
+- `tools/pack.js` — gera o `content.enc.js` a partir do `private/`
+- `private/questions.json` — as perguntas em claro (fora do Git)
+- `private/images/` — imagens das perguntas com símbolos (fora do Git)
+- `icons/` — logótipo e ícones da RadarVirtual (o `logo.png` é o do site da escola;
+  os ícones da app são o símbolo do logótipo recortado)
 
 ## Adicionar ou corrigir perguntas
 
-As perguntas estão em **`questions.js`**. Abre o ficheiro num editor de texto e
-acrescenta um objeto à lista `"perguntas"`, seguindo este formato:
+As perguntas estão em **`private/questions.json`**. Abre o ficheiro num editor de texto
+e acrescenta um objeto à lista `"perguntas"`, seguindo este formato:
 
 ```js
 {
@@ -70,10 +125,11 @@ acrescenta um objeto à lista `"perguntas"`, seguindo este formato:
 }
 ```
 
-Guarda o ficheiro e recarrega a página. (Se editares o `questions.json`,
-lembra-te de passar a alteração também para o `questions.js`, que é o que a app usa.)
+Guarda o ficheiro e corre `node tools/pack.js` para voltar a cifrar o conteúdo — só
+depois é que a alteração aparece na app. (Uma imagem nova é `private/images/xxx.png` e
+entra no pacote sozinha; o campo `"imagem"` continua a ser `"images/xxx.png"`.)
 
-**Números das perguntas:** cada pergunta tem um **número único e fixo** (1 a 185),
+**Números das perguntas:** cada pergunta tem um **número único e fixo** (1 a 187),
 mostrado em cada pergunta como **"N.º 45"** — ao lado da matéria. Esse número **não
 muda** quando as perguntas são baralhadas, por isso serve para identificar uma pergunta
 em concreto (ex.: *"a pergunta N.º 45 tem a resposta errada"*). Não confundir com o
@@ -81,11 +137,12 @@ em concreto (ex.: *"a pergunta N.º 45 tem a resposta errada"*). Não confundir 
 
 ## Sobre as respostas
 
-- As respostas das matérias **Sobrevivência, Primeiros Socorros e Segurança Pessoal**
+- As respostas das matérias **Sobrevivência, Primeiros Socorros e Responsabilidades Sociais**
   e várias de **Incêndios** foram tiradas dos **exames de correção oficiais** que
   forneceste (resposta assinalada com X).
 - As restantes respostas de **Incêndios (PCI)** — cujo ficheiro só tinha as perguntas —
   foram preenchidas com conhecimento da matéria de segurança marítima.
 - Algumas poucas perguntas têm uma **nota ℹ️** a sugerir que confirmes a resposta com
   o teu formador/manual (são as de resposta menos linear). Se encontrares alguma
-  resposta que aches errada, é só corrigir o `correta` dessa pergunta no `questions.js`.
+  resposta que aches errada, é só corrigir o `correta` dessa pergunta no
+  `private/questions.json` e correr `node tools/pack.js`.

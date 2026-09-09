@@ -3,31 +3,61 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Treino — Exame de Segurança Básica</title>
-  <meta name="theme-color" content="#0b3d63" />
+  <title>RadarVirtual — Treino de Marinheiro com Segurança Básica</title>
+  <meta name="theme-color" content="#6a1856" />
   <link rel="stylesheet" href="style.css" />
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="icons/favicon.png" type="image/png" sizes="64x64" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Seg. Básica" />
+  <meta name="apple-mobile-web-app-title" content="Exames" />
+  <!-- Tema aplicado antes de pintar (o ecrã de bloqueio já aparece na cor certa). -->
+  <script>
+    try {
+      var t = localStorage.getItem("sb_tema");
+      if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="brand-logo" aria-hidden="true">🛟</span>
+      <img class="brand-logo" src="icons/logo.png" alt="RadarVirtual — Escola de Formação Náutica" />
       <div class="brand-text">
-        <strong>Treino de Segurança Básica</strong>
-        <small>Exame de marinheiro · STCW A-VI/1</small>
+        <strong>
+          <span class="so-largo">Treino de Marinheiro com Segurança Básica</span>
+          <span class="so-estreito">RadarVirtual · Exames</span>
+        </strong>
+        <small>STCW A-VI/1</small>
       </div>
     </div>
-    <button id="themeToggle" class="icon-btn" type="button" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+    <div class="topbar-acoes">
+      <button id="themeToggle" class="icon-btn hidden" type="button" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+      <button id="btnBloquear" class="icon-btn hidden" type="button" title="Bloquear" aria-label="Bloquear a aplicação">🔒</button>
+    </div>
   </header>
 
-  <main class="wrap">
+  <!-- ========== ECRÃ DE BLOQUEIO ========== -->
+  <section id="screen-lock" class="wrap screen">
+    <div class="card lock">
+      <img class="lock-logo" src="icons/icon-192.png" alt="RadarVirtual" />
+      <h1>Aplicação protegida</h1>
+      <p class="muted small">As perguntas estão encriptadas. Escreve o PIN para as abrir.</p>
+      <input id="lockPin" class="lock-pin" type="password" inputmode="numeric" autocomplete="off"
+             enterkeyhint="go" aria-label="PIN" placeholder="••••••" />
+      <p id="lockMsg" class="lock-msg" role="status" aria-live="polite"></p>
+      <button id="btnDesbloquear" class="btn btn-primary btn-block" type="button">Desbloquear</button>
+      <label class="switch lock-check">
+        <input type="checkbox" id="lockLembrar" checked />
+        <span>Lembrar neste dispositivo</span>
+      </label>
+    </div>
+  </section>
+
+  <main id="appMain" class="wrap hidden">
 
     <!-- ========== ECRÃ INICIAL ========== -->
     <section id="screen-start" class="screen">
@@ -144,7 +174,8 @@
   </main>
 
   <footer class="footer">
-    <span id="footTotal"></span> · Feito para treinar · sem login, sem dados enviados
+    <span id="footTotal"></span>Escola de Formação Náutica <strong>RadarVirtual</strong><br />
+    <a href="https://radarvirtual.pt" target="_blank" rel="noopener">radarvirtual.pt</a> · sem login, sem dados enviados
   </footer>
 
   <!-- Diálogo de confirmação para terminar o teste -->
@@ -159,8 +190,9 @@
     </div>
   </div>
 
-  <script src="questions.js"></script>
+  <script src="content.enc.js"></script>
   <script src="app.js"></script>
+  <script src="auth.js"></script>
 
   <!-- Registo do service worker (PWA / offline) -->
   <script>

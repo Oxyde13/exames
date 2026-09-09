@@ -1,11 +1,12 @@
 /* ============================================================
-   Treino — Exame de Segurança Básica (marítimo)
-   App simples, sem dependências. Dados em window.EXAM_DATA.
+   Treino de Marinheiro com Segurança Básica (STCW A-VI/1)
+   App simples, sem dependências. Dados em window.EXAM_DATA, preenchido pelo
+   auth.js depois de desencriptar o conteúdo — a app arranca por startApp().
    ============================================================ */
 (function () {
   "use strict";
 
-  var DATA = window.EXAM_DATA || { perguntas: [], meta: {} };
+  var DATA = { perguntas: [], meta: {} };
   var LETRAS = ["A", "B", "C", "D", "E", "F"];
   var HKEY = "sb_historico";       // histórico de resultados
   var TKEY = "sb_tema";            // tema
@@ -34,8 +35,9 @@
       var s = o.toLowerCase();
       return /(^|\s)[a-d]\s*\)/.test(s)                // refere letras: "a)", "b )" (isoladas)
           || /\banteriores?\b/.test(s)                 // "(das) anteriores"
-          || /nenhuma/.test(s)                         // "nenhuma das..."
-          || /todas as (respostas|afirma|op)/.test(s)  // "todas as respostas/afirmações/opções"
+          || /\bnenhum[ao]?s?\b/.test(s)               // "nenhuma das...", "nenhum dos acima listados"
+          || /\btod[ao]s\s+[ao]s\s+(respostas|afirma|op|al[íi]neas)/.test(s)
+          || /\b(acima|abaixo)\s+(listad|indicad|referid|mencionad|descrit)/.test(s)
           || /as duas respostas/.test(s);              // "as duas respostas..."
     });
   }
@@ -82,7 +84,7 @@
       o.textContent = c + " (" + n + ")";
       sel.appendChild(o);
     });
-    $("footTotal").textContent = DATA.perguntas.length + " perguntas disponíveis";
+    $("footTotal").textContent = DATA.perguntas.length + " perguntas disponíveis · ";
     renderHistorico();
     renderRetomar();
   }
@@ -146,8 +148,12 @@
     $("qNumero").textContent = q.numero ? "N.º " + q.numero : "";
     $("qEnunciado").textContent = q.enunciado;
 
-    if (q.imagem) {
-      $("qFigura").src = q.imagem;
+    // As imagens vêm cifradas dentro do pacote e existem como blob URL. O teste
+    // guardado mantém o caminho original ("images/x.png"), não o blob URL — que
+    // morre com a sessão —, por isso a resolução é feita aqui, no render.
+    var srcImagem = q.imagem && (window.EXAM_IMAGENS || {})[q.imagem] || q.imagem;
+    if (srcImagem) {
+      $("qFigura").src = srcImagem;
       show("qFiguraWrap");
     } else {
       $("qFigura").removeAttribute("src");
@@ -385,11 +391,13 @@
     if (!DATA.perguntas || !DATA.perguntas.length) {
       $("screen-start").innerHTML =
         '<div class="card"><h1>Sem perguntas</h1><p class="muted">' +
-        'Não foi possível carregar as perguntas (questions.js).</p></div>';
+        'Não foi possível carregar as perguntas (content.enc.js).</p></div>';
     }
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else { init(); }
+  // Chamado pelo auth.js assim que o conteúdo é desencriptado.
+  window.startApp = function () {
+    DATA = window.EXAM_DATA || { perguntas: [], meta: {} };
+    init();
+  };
 })();

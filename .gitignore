@@ -11,3 +11,7 @@
 # Logs
 *.log
 .claude/
+
+# Conteúdo em claro (nunca publicar)
+private/
+.gstack/
