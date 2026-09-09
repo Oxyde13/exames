@@ -40,14 +40,14 @@ no topo volta a bloquear.
 Extras: filtrar por matéria, baralhar perguntas/opções, histórico dos últimos
 testes (guardado só no teu browser) e tema claro/escuro (botão 🌙 no topo).
 
-## Matérias incluídas (187 perguntas)
+## Matérias incluídas (214 perguntas)
 
 | Matéria | Perguntas |
 |---|---|
 | Incêndios · PCI (A-VI/1.2) | 91 |
-| Sobrevivência (A-VI/1.1) | 29 |
-| Responsabilidades Sociais (A-VI/1.4) | 38 |
-| Primeiros Socorros (A-VI/1.3) | 29 |
+| Sobrevivência (A-VI/1.1) | 35 |
+| Responsabilidades Sociais (A-VI/1.4) | 46 |
+| Primeiros Socorros (A-VI/1.3) | 42 |
 
 ## Protecção por PIN
 
@@ -129,7 +129,7 @@ Guarda o ficheiro e corre `node tools/pack.js` para voltar a cifrar o conteúdo 
 depois é que a alteração aparece na app. (Uma imagem nova é `private/images/xxx.png` e
 entra no pacote sozinha; o campo `"imagem"` continua a ser `"images/xxx.png"`.)
 
-**Números das perguntas:** cada pergunta tem um **número único e fixo** (1 a 187),
+**Números das perguntas:** cada pergunta tem um **número único e fixo** (1 a 214),
 mostrado em cada pergunta como **"N.º 45"** — ao lado da matéria. Esse número **não
 muda** quando as perguntas são baralhadas, por isso serve para identificar uma pergunta
 em concreto (ex.: *"a pergunta N.º 45 tem a resposta errada"*). Não confundir com o

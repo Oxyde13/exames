@@ -35,8 +35,10 @@
       var s = o.toLowerCase();
       return /(^|\s)[a-d]\s*\)/.test(s)                // refere letras: "a)", "b )" (isoladas)
           || /\banteriores?\b/.test(s)                 // "(das) anteriores"
-          || /\bnenhum[ao]?s?\b/.test(s)               // "nenhuma das...", "nenhum dos acima listados"
+          // "nenhuma das anteriores", "nenhum dos acima listados", "nenhuma resposta está certa"
+          || /\bnenhum[ao]?s?\s+(d[aeo]s?\b|respostas?|afirma|op[cç]|alternativa|hip[óo]tese)/.test(s)
           || /\btod[ao]s\s+[ao]s\s+(respostas|afirma|op|al[íi]neas)/.test(s)
+          || /\btod[ao]s\s+(est[ãa]o|se encontram)\b/.test(s)   // "todos estão certos"
           || /\b(acima|abaixo)\s+(listad|indicad|referid|mencionad|descrit)/.test(s)
           || /as duas respostas/.test(s);              // "as duas respostas..."
     });
