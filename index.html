@@ -63,7 +63,7 @@
     <section id="screen-start" class="screen">
       <div id="retomar" class="card retomar hidden">
         <div class="retomar-info">
-          <strong>▶ Tens um teste a meio</strong>
+          <strong id="retomarTitulo">▶ Tens um teste a meio</strong>
           <span id="retomarDetalhe" class="muted small"></span>
         </div>
         <div class="retomar-actions">
@@ -105,6 +105,16 @@
         <button id="btnIniciar" class="btn btn-primary btn-block" type="button">Iniciar teste</button>
       </div>
 
+      <div class="card exame-card">
+        <h2>🎓 Simular exame real</h2>
+        <p class="muted small">
+          <b>40 perguntas</b> — 10 de cada módulo — em <b>60 minutos</b>, sem ver as respostas até
+          entregares. Passas um módulo com <b>5 acertos em 10</b>: falhar um módulo leva-te a
+          <b>exame oral</b>, falhar dois ou mais é <b>reprovação</b>.
+        </p>
+        <button id="btnExame" class="btn btn-primary btn-block" type="button">Começar exame</button>
+      </div>
+
       <div id="historico" class="card historico hidden">
         <h2>Últimos testes</h2>
         <ul id="historicoLista"></ul>
@@ -118,14 +128,28 @@
         <div class="quiz-head-row">
           <button id="btnTerminar" class="btn-terminar" type="button">✕ Terminar teste</button>
           <div class="scoreboard">
-            <span class="pill pill-ok" title="Acertadas à primeira"><b id="scoreCertas">0</b> certas</span>
-            <span class="pill pill-bad" title="Falhadas pelo menos uma vez"><b id="scoreErradas">0</b> erradas</span>
+            <span id="scoreTreino" class="scoreboard">
+              <span class="pill pill-ok" title="Acertadas à primeira"><b id="scoreCertas">0</b> certas</span>
+              <span class="pill pill-bad" title="Falhadas pelo menos uma vez"><b id="scoreErradas">0</b> erradas</span>
+            </span>
+            <span id="scoreExame" class="pill hidden" title="Perguntas já respondidas"><b id="scoreRespondidas">0</b> / <span id="scoreTotal">40</span></span>
+            <span id="cronometro" class="pill cronometro hidden" title="Tempo restante">⏳ 60:00</span>
           </div>
         </div>
         <div class="progress-row">
           <span id="progressLabel" class="progress-label">1 / 20</span>
         </div>
         <div class="progress-track"><div id="progressBar" class="progress-fill"></div></div>
+
+        <!-- Mapa das perguntas (só no exame): saltar para qualquer uma e ver
+             quais já estão respondidas. -->
+        <div id="mapaWrap" class="mapa-wrap hidden">
+          <button id="btnMapa" class="mapa-toggle" type="button" aria-expanded="false" aria-controls="mapaPerguntas">
+            <span id="mapaResumo">0 de 40 respondidas</span>
+            <span id="mapaSeta" class="mapa-seta">▾</span>
+          </button>
+          <div id="mapaPerguntas" class="mapa hidden"></div>
+        </div>
       </div>
 
       <div class="card quiz-card">
@@ -155,6 +179,11 @@
         <h1 id="resultTitulo">Resultado</h1>
         <p id="resultSub" class="muted"></p>
 
+        <div id="resultExame" class="hidden">
+          <p id="veredicto" class="veredicto"></p>
+          <ul id="resultModulos" class="modulos"></ul>
+        </div>
+
         <div class="result-grid">
           <div class="stat stat-ok"><b id="resCertas">0</b><span>Certas</span></div>
           <div class="stat stat-bad"><b id="resErradas">0</b><span>Erradas</span></div>
@@ -166,6 +195,7 @@
         <p id="resDetalhe" class="muted small"></p>
 
         <div class="result-actions">
+          <button id="btnRever" class="btn btn-ghost btn-block hidden" type="button">Rever respostas</button>
           <button id="btnRecomecar" class="btn btn-primary btn-block" type="button">Novo teste</button>
         </div>
       </div>
@@ -181,8 +211,8 @@
   <!-- Diálogo de confirmação para terminar o teste -->
   <div id="modalTerminar" class="modal-overlay hidden">
     <div class="modal">
-      <h3>Terminar o teste?</h3>
-      <p class="muted">Vais ver o resultado até aqui. Podes retomar este teste mais tarde a partir do ecrã inicial.</p>
+      <h3 id="modalTitulo">Terminar o teste?</h3>
+      <p id="modalTexto" class="muted">Vais ver o resultado até aqui. Podes retomar este teste mais tarde a partir do ecrã inicial.</p>
       <div class="modal-actions">
         <button id="btnModalCancelar" class="btn btn-ghost" type="button">Continuar a responder</button>
         <button id="btnModalConfirmar" class="btn btn-primary" type="button">Terminar teste</button>

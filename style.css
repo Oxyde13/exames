@@ -168,6 +168,80 @@ select {
 .btn-block { display: block; width: 100%; }
 .btn-sm { padding: 8px 12px; font-size: 13px; }
 
+/* ===== Cartão do exame ===== */
+.exame-card { border-color: var(--primary); }
+.exame-card h2 { margin-bottom: 8px; }
+.exame-card p { margin: 0 0 16px; }
+
+/* ===== Cronómetro ===== */
+.cronometro { font-variant-numeric: tabular-nums; }
+.cronometro.is-alerta {
+  color: var(--bad); border-color: var(--bad-border); background: var(--bad-soft); font-weight: 700;
+}
+
+/* ===== Mapa das perguntas do exame ===== */
+.mapa-wrap { margin-top: 10px; }
+.mapa-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  color: var(--muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 12px;
+}
+.mapa-toggle:hover { color: var(--text); border-color: var(--primary); }
+.mapa-seta { flex: 0 0 auto; }
+.mapa {
+  margin-top: 8px; padding: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+}
+.mapa-modulo { font-size: 11.5px; font-weight: 600; color: var(--muted); margin: 10px 0 6px; }
+.mapa-modulo:first-child { margin-top: 0; }
+.mapa-grelha { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+.mp {
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  aspect-ratio: 1 / 1; padding: 0; min-width: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 8px;
+  transition: transform .05s, background .15s, border-color .15s;
+}
+.mp:hover { border-color: var(--primary); color: var(--text); }
+.mp:active { transform: translateY(1px); }
+.mp.is-feita { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.mp.is-certa { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.mp.is-errada { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.mp.is-atual { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ===== Resultado do exame ===== */
+.veredicto {
+  margin: 4px 0 16px; padding: 12px 14px; border-radius: 12px;
+  font-weight: 600; font-size: 14.5px; border: 1px solid transparent;
+}
+.veredicto.is-aprovado { color: var(--ok); background: var(--ok-soft); border-color: var(--ok-border); }
+.veredicto.is-oral { color: #9a6700; background: #fff5db; border-color: #e8c874; }
+.veredicto.is-reprovado { color: var(--bad); background: var(--bad-soft); border-color: var(--bad-border); }
+:root[data-theme="dark"] .veredicto.is-oral { color: #f0c46a; background: #3a2e1099; border-color: #7a6428; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .veredicto.is-oral { color: #f0c46a; background: #3a2e1099; border-color: #7a6428; }
+}
+.modulos { list-style: none; margin: 0 0 18px; padding: 0; text-align: left; }
+.modulos li {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; margin-bottom: 6px; font-size: 14px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2);
+}
+.modulos .m-nome { min-width: 0; }
+.modulos .m-score { flex: 0 0 auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.modulos li.is-ok .m-score { color: var(--ok); }
+.modulos li.is-bad .m-score { color: var(--bad); }
+.modulos li.is-bad { border-color: var(--bad-border); background: var(--bad-soft); }
+.historico .h-score.ver-aprovado b { color: var(--ok); }
+.historico .h-score.ver-oral b { color: #9a6700; }
+:root[data-theme="dark"] .historico .h-score.ver-oral b { color: #f0c46a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .historico .h-score.ver-oral b { color: #f0c46a; }
+}
+.historico .h-score.ver-reprovado b { color: var(--bad); }
+
 /* ===== Retomar teste a meio ===== */
 .retomar { display: flex; align-items: center; justify-content: space-between; gap: 14px;
   border-color: var(--primary); background: var(--primary-soft); }
@@ -238,6 +312,9 @@ select {
 }
 .opcao .txt { flex: 1; padding-top: 2px; }
 .opcao:disabled { cursor: default; }
+/* opção escolhida durante o exame — assinala sem revelar se está certa */
+.opcao.is-escolhida { background: var(--primary-soft); border-color: var(--primary); }
+.opcao.is-escolhida .letra { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .opcao.is-correct { background: var(--ok-soft); border-color: var(--ok); color: var(--text); }
 .opcao.is-correct .letra { background: var(--ok); border-color: var(--ok); color: #fff; }
 .opcao.is-wrong { background: var(--bad-soft); border-color: var(--bad); }
@@ -274,7 +351,7 @@ select {
 .stat-bad b { color: var(--bad); }
 .result-bar-track { height: 12px; background: var(--bad-soft); border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
 .result-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--ok), #2fb56a); transition: width .5s ease; }
-.result-actions { margin-top: 20px; }
+.result-actions { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
 
 /* ===== Footer ===== */
 .footer { text-align: center; font-size: 12px; color: var(--muted); padding: 8px 14px 22px; line-height: 1.7; }

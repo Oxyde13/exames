@@ -12,8 +12,14 @@
   var TKEY = "sb_tema";            // tema
   var SKEY = "sb_teste_atual";     // teste em curso (para retomar)
 
+  // Regras do exame real: 10 perguntas de cada módulo, 60 minutos, e passa-se
+  // cada módulo com 5 acertos. Falhar um módulo leva a oral; dois ou mais reprova.
+  var EXAME = { porCategoria: 10, minimo: 5, minutos: 60 };
+
   var test = null;        // teste em curso
   var retomavel = null;   // snapshot de teste a meio guardado
+  var relogio = null;     // setInterval do cronómetro (só no exame)
+  var mapaAberto = false; // mapa das perguntas do exame aberto?
 
   /* ---------- utilitários ---------- */
   function $(id) { return document.getElementById(id); }
@@ -50,7 +56,14 @@
     });
     return seen;
   }
-  function respondidas() { return test ? test.certas + test.erradas : 0; }
+  function respondidas() {
+    if (!test) return 0;
+    // No exame ainda não há certas/erradas — conta-se o que já foi escolhido.
+    if (test.modo === "exame" && !test.concluido) {
+      return test.perguntas.filter(function (q) { return q.escolhaIdx >= 0; }).length;
+    }
+    return test.certas + test.erradas;
+  }
 
   /* ---------- tema ---------- */
   function aplicarTema() {
@@ -92,6 +105,23 @@
   }
 
   /* ---------- iniciar teste ---------- */
+  function prepararPergunta(p, baralharOpcoes) {
+    var opcoes = p.opcoes.map(function (txt, i) {
+      return { texto: txt, correta: i === p.correta };
+    });
+    if (baralharOpcoes && !opcoesFixas(p.opcoes)) opcoes = shuffle(opcoes);
+    return {
+      numero: p.numero,
+      enunciado: p.enunciado,
+      categoria: p.categoria,
+      imagem: p.imagem || null,
+      nota: p.nota || null,
+      opcoes: opcoes,
+      estado: "pendente",   // pendente | respondida (exame) | certa | errada
+      escolhaIdx: -1
+    };
+  }
+
   function iniciarTeste() {
     var cat = $("selCategoria").value;
     var num = parseInt($("selNumero").value, 10);
@@ -102,22 +132,7 @@
     if (baralhar) pool = shuffle(pool);
     if (num > 0 && pool.length > num) pool = pool.slice(0, num);
 
-    var perguntas = pool.map(function (p) {
-      var opcoes = p.opcoes.map(function (txt, i) {
-        return { texto: txt, correta: i === p.correta };
-      });
-      if (baralharOpcoes && !opcoesFixas(p.opcoes)) opcoes = shuffle(opcoes);
-      return {
-        numero: p.numero,
-        enunciado: p.enunciado,
-        categoria: p.categoria,
-        imagem: p.imagem || null,
-        nota: p.nota || null,
-        opcoes: opcoes,
-        estado: "pendente",   // pendente | certa | errada
-        escolhaIdx: -1
-      };
-    });
+    var perguntas = pool.map(function (p) { return prepararPergunta(p, baralharOpcoes); });
 
     test = {
       cat: cat || "Todas as matérias",
@@ -129,18 +144,82 @@
     abrirQuiz();
   }
 
+  /* ---------- iniciar exame ---------- */
+  function iniciarExame() {
+    // 10 perguntas de cada módulo, agrupadas por módulo como nas folhas do exame.
+    var perguntas = [];
+    categorias().forEach(function (c) {
+      var pool = shuffle(DATA.perguntas.filter(function (p) { return p.categoria === c; }));
+      pool.slice(0, EXAME.porCategoria).forEach(function (p) {
+        perguntas.push(prepararPergunta(p, true));
+      });
+    });
+
+    test = {
+      modo: "exame",
+      cat: "Exame completo",
+      perguntas: perguntas, idx: 0,
+      certas: 0, erradas: 0, total: perguntas.length,
+      concluido: false,
+      inicio: Date.now(),
+      fim: Date.now() + EXAME.minutos * 60 * 1000
+    };
+    guardarEstado();
+    abrirQuiz();
+  }
+
+  function noExame() { return !!(test && test.modo === "exame"); }
+
   function abrirQuiz() {
     hide("screen-start");
     hide("screen-results");
     show("screen-quiz");
     window.scrollTo(0, 0);
+    prepararCabecalho();
     renderPergunta();
+  }
+
+  /* ---------- cronómetro (só no exame) ---------- */
+  function mmss(ms) {
+    var s = Math.max(0, Math.round(ms / 1000));
+    var m = Math.floor(s / 60);
+    return (m < 10 ? "0" : "") + m + ":" + ((s % 60) < 10 ? "0" : "") + (s % 60);
+  }
+
+  function pararRelogio() {
+    if (relogio) { clearInterval(relogio); relogio = null; }
+  }
+
+  function tiquetaque() {
+    if (!noExame()) return;
+    var resta = test.fim - Date.now();
+    $("cronometro").textContent = "⏳ " + mmss(resta);
+    $("cronometro").classList.toggle("is-alerta", resta <= 5 * 60 * 1000);
+    if (resta <= 0) {
+      pararRelogio();
+      terminar(true);
+    }
+  }
+
+  function prepararCabecalho() {
+    pararRelogio();
+    mapaAberto = false;
+    var exame = noExame() && !test.concluido;
+    $("scoreTreino").classList.toggle("hidden", exame);
+    $("scoreExame").classList.toggle("hidden", !exame);
+    $("cronometro").classList.toggle("hidden", !exame);
+    $("btnTerminar").textContent = exame ? "✕ Entregar exame"
+      : (test && test.veredicto) ? "✕ Voltar ao resultado" : "✕ Terminar teste";
+    if (exame) { tiquetaque(); relogio = setInterval(tiquetaque, 1000); }
   }
 
   /* ---------- render de uma pergunta ---------- */
   function renderPergunta() {
     var q = test.perguntas[test.idx];
-    var revisao = q.estado !== "pendente";
+    // Durante o exame nada é revelado: a pergunta respondida continua editável e
+    // só passa a "revisão" (verde/vermelho) depois de o exame ser entregue.
+    var emProva = noExame() && !test.concluido;
+    var revisao = !emProva && q.estado !== "pendente";
 
     $("progressLabel").textContent = (test.idx + 1) + " / " + test.total;
     $("progressBar").style.width = (respondidas() / test.total * 100) + "%";
@@ -176,6 +255,7 @@
         else if (i === q.escolhaIdx) btn.classList.add("is-wrong");
         else btn.classList.add("is-dim");
       } else {
+        if (emProva && i === q.escolhaIdx) btn.classList.add("is-escolhida");
         btn.addEventListener("click", function () { escolher(q, i); });
       }
       cont.appendChild(btn);
@@ -188,8 +268,11 @@
       fb.className = "feedback";
       hide("qNota");
     } else if (q.estado === "certa") {
-      fb.textContent = "Certo! Acertaste à primeira. 👏";
+      fb.textContent = noExame() ? "Certo! 👏" : "Certo! Acertaste à primeira. 👏";
       fb.className = "feedback ok";
+    } else if (noExame() && q.escolhaIdx < 0) {
+      fb.textContent = "Ficou por responder — conta como errada. A resposta certa está a verde.";
+      fb.className = "feedback bad";
     } else {
       fb.textContent = "Errado. A resposta certa é a que está assinalada a verde.";
       fb.className = "feedback bad";
@@ -199,19 +282,94 @@
 
     // navegação
     if (test.idx > 0) show("btnAnterior"); else hide("btnAnterior");
-    if (revisao) {
-      $("btnProxima").textContent =
-        (test.idx === test.total - 1) ? "Ver resultado" : "Próxima pergunta";
+    var ultima = test.idx === test.total - 1;
+    if (emProva) {
+      // No exame avança-se sempre, com ou sem resposta dada.
+      $("btnProxima").textContent = ultima ? "Entregar exame" : "Próxima pergunta";
+      show("btnProxima");
+    } else if (revisao) {
+      $("btnProxima").textContent = ultima ? "Ver resultado" : "Próxima pergunta";
       show("btnProxima");
     } else {
       hide("btnProxima");
     }
     // esconder a barra de navegação quando não tem botões (1ª pergunta ainda por responder)
-    if (test.idx > 0 || revisao) show("quizFoot"); else hide("quizFoot");
+    if (test.idx > 0 || revisao || emProva) show("quizFoot"); else hide("quizFoot");
+
+    renderMapa();
   }
 
-  /* ---------- responder (revela logo a resposta certa) ---------- */
+  /* ---------- mapa das perguntas (exame) ---------- */
+  function irPara(i) {
+    test.idx = i;
+    mapaAberto = false;          // saltar fecha o mapa, para se ver a pergunta
+    renderPergunta();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function alternarMapa() {
+    mapaAberto = !mapaAberto;
+    renderMapa();
+  }
+
+  function renderMapa() {
+    var wrap = $("mapaWrap");
+    if (!noExame()) { wrap.classList.add("hidden"); return; }
+    wrap.classList.remove("hidden");
+
+    var feitas = test.perguntas.filter(function (q) { return q.escolhaIdx >= 0; }).length;
+    var falta = test.total - feitas;
+    $("mapaResumo").textContent = test.concluido
+      ? "Perguntas do exame — salta para qualquer uma"
+      : feitas + " de " + test.total + " respondidas" + (falta ? " · faltam " + falta : " · estão todas");
+    $("mapaSeta").textContent = mapaAberto ? "▴" : "▾";
+    $("btnMapa").setAttribute("aria-expanded", mapaAberto ? "true" : "false");
+    $("mapaPerguntas").classList.toggle("hidden", !mapaAberto);
+    if (!mapaAberto) return;
+
+    var cont = $("mapaPerguntas");
+    cont.innerHTML = "";
+    var grelha = null, ultima = null;
+    test.perguntas.forEach(function (q, i) {
+      if (q.categoria !== ultima) {
+        ultima = q.categoria;
+        var h = document.createElement("div");
+        h.className = "mapa-modulo";
+        h.textContent = q.categoria;
+        cont.appendChild(h);
+        grelha = document.createElement("div");
+        grelha.className = "mapa-grelha";
+        cont.appendChild(grelha);
+      }
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "mp";
+      b.textContent = i + 1;
+      if (test.concluido) {
+        b.classList.add(q.estado === "certa" ? "is-certa" : "is-errada");
+        b.title = "Pergunta " + (i + 1) + (q.estado === "certa" ? " — certa" : " — errada");
+      } else if (q.escolhaIdx >= 0) {
+        b.classList.add("is-feita");
+        b.title = "Pergunta " + (i + 1) + " — respondida";
+      } else {
+        b.title = "Pergunta " + (i + 1) + " — por responder";
+      }
+      if (i === test.idx) b.classList.add("is-atual");
+      b.addEventListener("click", function () { irPara(i); });
+      grelha.appendChild(b);
+    });
+  }
+
+  /* ---------- responder ---------- */
   function escolher(q, i) {
+    // No exame a resposta pode ser mudada até à entrega e nada é revelado.
+    if (noExame() && !test.concluido) {
+      q.escolhaIdx = i;
+      q.estado = "respondida";
+      guardarEstado();
+      renderPergunta();
+      return;
+    }
     if (q.estado !== "pendente") return;
     q.escolhaIdx = i;
     if (q.opcoes[i].correta) { q.estado = "certa"; test.certas++; }
@@ -221,6 +379,11 @@
   }
 
   function atualizarScore() {
+    if (noExame() && !test.concluido) {
+      $("scoreRespondidas").textContent = respondidas();
+      $("scoreTotal").textContent = test.total;
+      return;
+    }
     $("scoreCertas").textContent = test.certas;
     $("scoreErradas").textContent = test.erradas;
   }
@@ -237,8 +400,107 @@
     }
   }
 
+  /* ---------- entregar o exame ---------- */
+  // Corrige as 40 perguntas (as que ficaram por responder contam como erradas),
+  // conta os acertos de cada módulo e aplica as regras da prova.
+  function corrigirExame() {
+    var porModulo = {};
+    test.certas = 0; test.erradas = 0;
+    test.perguntas.forEach(function (q) {
+      var certa = q.escolhaIdx >= 0 && q.opcoes[q.escolhaIdx].correta;
+      q.estado = certa ? "certa" : "errada";
+      if (certa) test.certas++; else test.erradas++;
+      var m = porModulo[q.categoria] || (porModulo[q.categoria] = { certas: 0, total: 0 });
+      m.total++;
+      if (certa) m.certas++;
+    });
+
+    var falhados = Object.keys(porModulo).filter(function (c) {
+      return porModulo[c].certas < EXAME.minimo;
+    });
+    test.porModulo = porModulo;
+    test.falhados = falhados;
+    test.veredicto = falhados.length === 0 ? "aprovado"
+      : falhados.length === 1 ? "oral" : "reprovado";
+    test.minutos = Math.max(1, Math.round((Date.now() - test.inicio) / 60000));
+    test.concluido = true;
+  }
+
+  function renderResultadoExame(porTempo) {
+    var v = test.veredicto;
+    var cfg = {
+      aprovado: { emoji: "🏆", titulo: "Aprovado!", txt: "Passaste em todos os módulos.", cls: "is-aprovado" },
+      oral:     { emoji: "🗣️", titulo: "Vais a exame oral", txt: "Falhaste 1 módulo — no exame real irias a oral.", cls: "is-oral" },
+      reprovado:{ emoji: "📚", titulo: "Reprovado", txt: "Falhaste mais do que um módulo.", cls: "is-reprovado" }
+    }[v];
+
+    $("resultEmoji").textContent = cfg.emoji;
+    $("resultTitulo").textContent = cfg.titulo;
+    $("resultSub").textContent = porTempo ? "O tempo acabou — o exame foi entregue automaticamente." : "Exame entregue.";
+
+    var ver = $("veredicto");
+    ver.textContent = cfg.txt;
+    ver.className = "veredicto " + cfg.cls;
+
+    var ul = $("resultModulos");
+    ul.innerHTML = "";
+    Object.keys(test.porModulo).forEach(function (c) {
+      var m = test.porModulo[c];
+      var passou = m.certas >= EXAME.minimo;
+      var li = document.createElement("li");
+      li.className = passou ? "is-ok" : "is-bad";
+      var nome = document.createElement("span");
+      nome.className = "m-nome";
+      nome.textContent = c;
+      var score = document.createElement("span");
+      score.className = "m-score";
+      score.textContent = (passou ? "✓ " : "✗ ") + m.certas + " / " + m.total +
+        (passou ? "" : "  (faltou " + (EXAME.minimo - m.certas) + ")");
+      li.appendChild(nome); li.appendChild(score);
+      ul.appendChild(li);
+    });
+
+    $("resDetalhe").textContent =
+      "Total: " + test.certas + " de " + test.total + " · " + test.minutos + " min · " +
+      (test.falhados.length === 0 ? "nenhum módulo falhado."
+        : test.falhados.length + (test.falhados.length === 1 ? " módulo falhado." : " módulos falhados.")) +
+      " Passa-se cada módulo com " + EXAME.minimo + " acertos em " + EXAME.porCategoria + ".";
+
+    show("resultExame");
+    show("btnRever");
+  }
+
   /* ---------- terminar / resultados ---------- */
-  function terminar() {
+  function terminar(porTempo) {
+    pararRelogio();
+
+    // Exame já entregue (estamos a rever): volta ao resultado sem recalcular nada.
+    if (test && test.veredicto) {
+      hide("screen-quiz");
+      show("screen-results");
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    if (noExame()) {
+      corrigirExame();
+      limparEstado();
+      var pctE = Math.round(test.certas / test.total * 100);
+      $("resCertas").textContent = test.certas;
+      $("resErradas").textContent = test.erradas;
+      $("resRespondidas").textContent = test.total;
+      $("resPercent").textContent = pctE + "%";
+      $("resultBar").style.width = pctE + "%";
+      renderResultadoExame(porTempo === true);
+      guardarHistorico(test.total, pctE);
+      hide("screen-quiz");
+      show("screen-results");
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    hide("resultExame");
+    hide("btnRever");
     var resp = respondidas();
     var pct = resp > 0 ? Math.round(test.certas / resp * 100) : 0;
     test.concluido = (resp === test.total);
@@ -276,11 +538,37 @@
   }
 
   function pedirTerminar() {
+    // A rever um exame já entregue: volta ao resultado, sem perguntar nada.
+    if (test && test.veredicto) { terminar(); return; }
     // Sem respostas ainda: termina logo (nada a perder).
     // Com respostas: pede confirmação num diálogo próprio (não usa window.confirm,
     // que nalguns browsers é bloqueado ou não aparece).
-    if (respondidas() === 0) { terminar(); return; }
+    if (respondidas() === 0 && !noExame()) { terminar(); return; }
+    if (noExame()) {
+      var falta = test.total - respondidas();
+      $("modalTitulo").textContent = "Entregar o exame?";
+      $("modalTexto").textContent = falta > 0
+        ? "Ainda tens " + falta + (falta === 1 ? " pergunta por responder, que conta" : " perguntas por responder, que contam") +
+          " como erradas. Depois de entregares não dá para mudar as respostas."
+        : "Respondeste a todas. Depois de entregares não dá para mudar as respostas.";
+      $("btnModalConfirmar").textContent = "Entregar exame";
+    } else {
+      $("modalTitulo").textContent = "Terminar o teste?";
+      $("modalTexto").textContent = "Vais ver o resultado até aqui. Podes retomar este teste mais tarde a partir do ecrã inicial.";
+      $("btnModalConfirmar").textContent = "Terminar teste";
+    }
     show("modalTerminar");
+  }
+
+  /* ---------- rever o exame já entregue ---------- */
+  function reverExame() {
+    if (!test) return;
+    test.idx = 0;
+    hide("screen-results");
+    show("screen-quiz");
+    prepararCabecalho();
+    renderPergunta();
+    window.scrollTo(0, 0);
   }
 
   /* ---------- persistência do teste em curso ---------- */
@@ -302,14 +590,27 @@
   function renderRetomar() {
     retomavel = carregarRetomavel();
     if (!retomavel) { hide("retomar"); return; }
-    var resp = retomavel.certas + retomavel.erradas;
-    $("retomarDetalhe").textContent =
-      retomavel.cat + " · " + resp + " de " + retomavel.total + " respondidas";
+    var exame = retomavel.modo === "exame";
+    var resp = exame
+      ? retomavel.perguntas.filter(function (q) { return q.escolhaIdx >= 0; }).length
+      : retomavel.certas + retomavel.erradas;
+    var resta = exame ? retomavel.fim - Date.now() : 0;
+    $("retomarTitulo").textContent = exame ? "▶ Tens um exame a meio" : "▶ Tens um teste a meio";
+    $("retomarDetalhe").textContent = exame
+      ? (resta > 0 ? mmss(resta) + " restantes" : "tempo esgotado") +
+        " · " + resp + " de " + retomavel.total + " respondidas"
+      : retomavel.cat + " · " + resp + " de " + retomavel.total + " respondidas";
     show("retomar");
   }
   function continuarTeste() {
     if (!retomavel) return;
     test = retomavel;
+    // Exame cujo tempo acabou entretanto: entrega-se com o que houver.
+    if (noExame() && test.fim - Date.now() <= 0) {
+      hide("screen-start");
+      terminar(true);
+      return;
+    }
     // ir para a primeira pergunta ainda por responder
     var alvo = test.perguntas.findIndex(function (q) { return q.estado === "pendente"; });
     test.idx = alvo >= 0 ? alvo : test.total - 1;
@@ -331,7 +632,10 @@
     h.unshift({
       d: Date.now(), cat: test.cat,
       certas: test.certas, erradas: test.erradas,
-      total: test.total, pct: pct, concluido: test.concluido
+      total: test.total, pct: pct, concluido: test.concluido,
+      modo: test.modo || "treino",
+      veredicto: test.veredicto || null,
+      minutos: test.minutos || null
     });
     h = h.slice(0, 8);
     try { localStorage.setItem(HKEY, JSON.stringify(h)); } catch (e) {}
@@ -350,10 +654,13 @@
       var estado = it.concluido ? "" : " · a meio";
       var esq = document.createElement("div");
       esq.innerHTML = '<div>' + dstr + '</div><div class="h-cat"></div>';
-      esq.querySelector(".h-cat").textContent = it.cat + estado;
+      var VER = { aprovado: "aprovado", oral: "vais a oral", reprovado: "reprovado" };
+      esq.querySelector(".h-cat").textContent = it.veredicto
+        ? "🎓 Exame · " + VER[it.veredicto] + (it.minutos ? " · " + it.minutos + " min" : "")
+        : it.cat + estado;
       var dir = document.createElement("div");
-      dir.className = "h-score";
-      dir.innerHTML = '<b>' + it.certas + '</b> / ' + (it.certas + it.erradas) +
+      dir.className = "h-score" + (it.veredicto ? " ver-" + it.veredicto : "");
+      dir.innerHTML = '<b>' + it.certas + '</b> / ' + (it.veredicto ? it.total : (it.certas + it.erradas)) +
         ' &nbsp; <span class="muted small">' + it.pct + '%</span>';
       li.appendChild(esq);
       li.appendChild(dir);
@@ -366,6 +673,8 @@
   }
 
   function voltarInicio() {
+    pararRelogio();
+    test = null;
     hide("screen-results");
     hide("screen-quiz");
     show("screen-start");
@@ -380,6 +689,9 @@
 
     $("themeToggle").addEventListener("click", alternarTema);
     $("btnIniciar").addEventListener("click", iniciarTeste);
+    $("btnExame").addEventListener("click", iniciarExame);
+    $("btnRever").addEventListener("click", reverExame);
+    $("btnMapa").addEventListener("click", alternarMapa);
     $("btnAnterior").addEventListener("click", anterior);
     $("btnProxima").addEventListener("click", proxima);
     $("btnTerminar").addEventListener("click", pedirTerminar);
