@@ -40,14 +40,59 @@ no topo volta a bloquear.
 Extras: filtrar por matéria, baralhar perguntas/opções, histórico dos últimos
 testes (guardado só no teu browser) e tema claro/escuro (botão 🌙 no topo).
 
-## Matérias incluídas (214 perguntas)
+## Matérias incluídas (242 perguntas)
 
 | Matéria | Perguntas |
 |---|---|
-| Incêndios · PCI (A-VI/1.2) | 91 |
-| Sobrevivência (A-VI/1.1) | 35 |
-| Responsabilidades Sociais (A-VI/1.4) | 46 |
-| Primeiros Socorros (A-VI/1.3) | 42 |
+| Incêndios · PCI (A-VI/1.2) | 96 |
+| Primeiros Socorros (A-VI/1.3) | 50 |
+| Responsabilidades Sociais (A-VI/1.4) | 50 |
+| Sobrevivência (A-VI/1.1) | 46 |
+
+## Exames concretos
+
+Além das matérias, dá para treinar **uma folha de exame em concreto**. Estão
+disponíveis:
+
+| Exame | Perguntas |
+|---|---|
+| Exame SB 3.0 | 43 (9 + 10 + 12 + 12) |
+| Exame SB 3.1 | 40 (10 de cada módulo) |
+
+Há duas formas de o fazer:
+
+- **Treino** — no ecrã inicial, em *Matéria*, escolhe o exame no grupo "Exames"
+  (ex.: **🎓 Exame SB 3.1**). Com *Baralhar as perguntas* desligado, vêm exactamente
+  pela ordem da folha.
+- **Simular exame real** — no cartão do simulador, o campo *Exame* deixa escolher entre
+  **Aleatório** (10 de cada módulo, como até aqui) e uma folha concreta. Escolhida uma
+  folha, saem exactamente aquelas perguntas, pela ordem do papel e com as opções por
+  baralhar.
+
+Como as folhas nem sempre têm 10 perguntas por módulo, a regra dos "5 acertos em 10"
+generaliza-se para **metade dos acertos do módulo** (arredondada para cima). Falhar um
+módulo continua a levar a oral, dois ou mais a reprovação.
+
+### Acrescentar outro exame
+
+No `private/questions.json`, cada pergunta que faça parte de uma folha leva
+
+```json
+"exames": { "sb30": 12, "sb31": 28 }
+```
+
+— o `12` é a **posição dessa pergunta na folha**. Uma pergunta pode pertencer a vários
+exames. Depois declara o exame no `meta`:
+
+```json
+"exames": [
+  { "id": "sb30", "nome": "Exame SB 3.0", "descricao": "...", "total": 43 },
+  { "id": "sb31", "nome": "Exame SB 3.1", "descricao": "...", "total": 40 }
+]
+```
+
+Perguntas que já existam no banco **não se duplicam** — marcam-se com a posição nesta
+folha. Só as inéditas é que entram como perguntas novas.
 
 ## Protecção por PIN
 
@@ -129,7 +174,7 @@ Guarda o ficheiro e corre `node tools/pack.js` para voltar a cifrar o conteúdo 
 depois é que a alteração aparece na app. (Uma imagem nova é `private/images/xxx.png` e
 entra no pacote sozinha; o campo `"imagem"` continua a ser `"images/xxx.png"`.)
 
-**Números das perguntas:** cada pergunta tem um **número único e fixo** (1 a 214),
+**Números das perguntas:** cada pergunta tem um **número único e fixo** (1 a 242),
 mostrado em cada pergunta como **"N.º 45"** — ao lado da matéria. Esse número **não
 muda** quando as perguntas são baralhadas, por isso serve para identificar uma pergunta
 em concreto (ex.: *"a pergunta N.º 45 tem a resposta errada"*). Não confundir com o

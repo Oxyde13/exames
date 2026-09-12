@@ -107,11 +107,17 @@
 
       <div class="card exame-card">
         <h2>🎓 Simular exame real</h2>
-        <p class="muted small">
+        <p id="exameDescricao" class="muted small">
           <b>40 perguntas</b> — 10 de cada módulo — em <b>60 minutos</b>, sem ver as respostas até
-          entregares. Passas um módulo com <b>5 acertos em 10</b>: falhar um módulo leva-te a
+          entregares. Passas um módulo com <b>metade dos acertos</b>: falhar um módulo leva-te a
           <b>exame oral</b>, falhar dois ou mais é <b>reprovação</b>.
         </p>
+
+        <div class="field">
+          <label for="selExame">Exame</label>
+          <select id="selExame"></select>
+        </div>
+
         <button id="btnExame" class="btn btn-primary btn-block" type="button">Começar exame</button>
       </div>
 

@@ -16,6 +16,10 @@
   // cada módulo com 5 acertos. Falhar um módulo leva a oral; dois ou mais reprova.
   var EXAME = { porCategoria: 10, minimo: 5, minutos: 60 };
 
+  // Nos exames a sério de uma folha específica o número de perguntas por módulo
+  // nem sempre é 10, por isso a regra dos "5 em 10" generaliza-se para metade.
+  function minimoModulo(total) { return Math.ceil(total / 2); }
+
   var test = null;        // teste em curso
   var retomavel = null;   // snapshot de teste a meio guardado
   var relogio = null;     // setInterval do cronómetro (só no exame)
@@ -56,6 +60,22 @@
     });
     return seen;
   }
+  // Exames concretos (folhas de correcção) declarados no meta do conteúdo.
+  // Cada pergunta que pertence a um exame traz exames[id] = posição na folha.
+  function exames() {
+    return (DATA.meta && DATA.meta.exames) || [];
+  }
+  function exameNome(id) {
+    var e = exames().filter(function (x) { return x.id === id; })[0];
+    return e ? e.nome : id;
+  }
+  // Perguntas de um exame, pela ordem da folha.
+  function perguntasDoExame(id) {
+    return DATA.perguntas
+      .filter(function (p) { return p.exames && p.exames[id] != null; })
+      .sort(function (a, b) { return a.exames[id] - b.exames[id]; });
+  }
+
   function respondidas() {
     if (!test) return 0;
     // No exame ainda não há certas/erradas — conta-se o que já foi escolhido.
@@ -99,9 +119,68 @@
       o.textContent = c + " (" + n + ")";
       sel.appendChild(o);
     });
+    // Exames concretos, num grupo à parte: treinar só as perguntas dessa folha.
+    if (exames().length) {
+      var grupo = document.createElement("optgroup");
+      grupo.label = "Exames";
+      exames().forEach(function (e) {
+        var n = perguntasDoExame(e.id).length;
+        if (!n) return;
+        var o = document.createElement("option");
+        o.value = "exame:" + e.id;
+        o.textContent = "🎓 " + e.nome + " (" + n + ")";
+        grupo.appendChild(o);
+      });
+      if (grupo.children.length) sel.appendChild(grupo);
+    }
+    preencherExames();
     $("footTotal").textContent = DATA.perguntas.length + " perguntas disponíveis · ";
     renderHistorico();
     renderRetomar();
+  }
+
+  // Selector do simulador: exame aleatório ou uma folha concreta.
+  function preencherExames() {
+    var sel = $("selExame");
+    sel.innerHTML = "";
+    var aleatorio = document.createElement("option");
+    aleatorio.value = "";
+    aleatorio.textContent = "Aleatório — " + EXAME.porCategoria + " de cada módulo";
+    sel.appendChild(aleatorio);
+    exames().forEach(function (e) {
+      var n = perguntasDoExame(e.id).length;
+      if (!n) return;
+      var o = document.createElement("option");
+      o.value = e.id;
+      o.textContent = e.nome + " (" + n + " perguntas)";
+      sel.appendChild(o);
+    });
+    sel.parentNode.classList.toggle("hidden", sel.children.length < 2);
+    descreverExame();
+  }
+
+  // Texto por baixo do título do simulador, conforme o exame escolhido.
+  function descreverExame() {
+    var id = $("selExame").value;
+    var p = $("exameDescricao");
+    if (!id) {
+      p.innerHTML = "<b>" + (EXAME.porCategoria * categorias().length) + " perguntas</b> — " +
+        EXAME.porCategoria + " de cada módulo — em <b>" + EXAME.minutos + " minutos</b>, sem ver as " +
+        "respostas até entregares. Passas um módulo com <b>" + EXAME.minimo + " acertos em " +
+        EXAME.porCategoria + "</b>: falhar um módulo leva-te a <b>exame oral</b>, falhar dois ou " +
+        "mais é <b>reprovação</b>.";
+      return;
+    }
+    var qs = perguntasDoExame(id);
+    var porCat = {};
+    qs.forEach(function (q) { porCat[q.categoria] = (porCat[q.categoria] || 0) + 1; });
+    var detalhe = Object.keys(porCat).map(function (c) {
+      return porCat[c] + " de " + c.replace(/\s*\(.*\)$/, "");
+    }).join(", ");
+    p.innerHTML = "<b>" + qs.length + " perguntas</b> — as da folha do " + exameNome(id) +
+      " (" + detalhe + ") — em <b>" + EXAME.minutos + " minutos</b>, sem ver as respostas até " +
+      "entregares. Passas cada módulo com <b>metade dos acertos</b>: falhar um módulo leva-te a " +
+      "<b>exame oral</b>, falhar dois ou mais é <b>reprovação</b>.";
   }
 
   /* ---------- iniciar teste ---------- */
@@ -128,14 +207,18 @@
     var baralhar = $("chkBaralhar").checked;
     var baralharOpcoes = $("chkBaralharOpcoes").checked;
 
-    var pool = DATA.perguntas.filter(function (p) { return !cat || p.categoria === cat; });
+    // "exame:<id>" treina só as perguntas dessa folha, pela ordem dela.
+    var idExame = cat.indexOf("exame:") === 0 ? cat.slice(6) : null;
+    var pool = idExame
+      ? perguntasDoExame(idExame)
+      : DATA.perguntas.filter(function (p) { return !cat || p.categoria === cat; });
     if (baralhar) pool = shuffle(pool);
     if (num > 0 && pool.length > num) pool = pool.slice(0, num);
 
     var perguntas = pool.map(function (p) { return prepararPergunta(p, baralharOpcoes); });
 
     test = {
-      cat: cat || "Todas as matérias",
+      cat: idExame ? exameNome(idExame) : (cat || "Todas as matérias"),
       perguntas: perguntas, idx: 0,
       certas: 0, erradas: 0, total: perguntas.length,
       concluido: false
@@ -146,18 +229,29 @@
 
   /* ---------- iniciar exame ---------- */
   function iniciarExame() {
-    // 10 perguntas de cada módulo, agrupadas por módulo como nas folhas do exame.
+    var idExame = $("selExame").value;
     var perguntas = [];
-    categorias().forEach(function (c) {
-      var pool = shuffle(DATA.perguntas.filter(function (p) { return p.categoria === c; }));
-      pool.slice(0, EXAME.porCategoria).forEach(function (p) {
-        perguntas.push(prepararPergunta(p, true));
+    if (idExame) {
+      // Folha concreta: exactamente estas perguntas, pela ordem e com as opções
+      // na ordem do exame — é para ser igual ao papel.
+      perguntasDoExame(idExame).forEach(function (p) {
+        perguntas.push(prepararPergunta(p, false));
       });
-    });
+    } else {
+      // 10 perguntas de cada módulo, agrupadas por módulo como nas folhas do exame.
+      categorias().forEach(function (c) {
+        var pool = shuffle(DATA.perguntas.filter(function (p) { return p.categoria === c; }));
+        pool.slice(0, EXAME.porCategoria).forEach(function (p) {
+          perguntas.push(prepararPergunta(p, true));
+        });
+      });
+    }
+    if (!perguntas.length) return;
 
     test = {
       modo: "exame",
-      cat: "Exame completo",
+      exameId: idExame || null,
+      cat: idExame ? exameNome(idExame) : "Exame completo",
       perguntas: perguntas, idx: 0,
       certas: 0, erradas: 0, total: perguntas.length,
       concluido: false,
@@ -416,7 +510,7 @@
     });
 
     var falhados = Object.keys(porModulo).filter(function (c) {
-      return porModulo[c].certas < EXAME.minimo;
+      return porModulo[c].certas < minimoModulo(porModulo[c].total);
     });
     test.porModulo = porModulo;
     test.falhados = falhados;
@@ -436,7 +530,8 @@
 
     $("resultEmoji").textContent = cfg.emoji;
     $("resultTitulo").textContent = cfg.titulo;
-    $("resultSub").textContent = porTempo ? "O tempo acabou — o exame foi entregue automaticamente." : "Exame entregue.";
+    $("resultSub").textContent = (test.exameId ? exameNome(test.exameId) + " — " : "") +
+      (porTempo ? "o tempo acabou e o exame foi entregue automaticamente." : "exame entregue.");
 
     var ver = $("veredicto");
     ver.textContent = cfg.txt;
@@ -446,7 +541,8 @@
     ul.innerHTML = "";
     Object.keys(test.porModulo).forEach(function (c) {
       var m = test.porModulo[c];
-      var passou = m.certas >= EXAME.minimo;
+      var minimo = minimoModulo(m.total);
+      var passou = m.certas >= minimo;
       var li = document.createElement("li");
       li.className = passou ? "is-ok" : "is-bad";
       var nome = document.createElement("span");
@@ -455,16 +551,17 @@
       var score = document.createElement("span");
       score.className = "m-score";
       score.textContent = (passou ? "✓ " : "✗ ") + m.certas + " / " + m.total +
-        (passou ? "" : "  (faltou " + (EXAME.minimo - m.certas) + ")");
+        (passou ? "" : "  (faltou " + (minimo - m.certas) + ")");
       li.appendChild(nome); li.appendChild(score);
       ul.appendChild(li);
     });
 
     $("resDetalhe").textContent =
+      (test.exameId ? exameNome(test.exameId) + " · " : "") +
       "Total: " + test.certas + " de " + test.total + " · " + test.minutos + " min · " +
       (test.falhados.length === 0 ? "nenhum módulo falhado."
         : test.falhados.length + (test.falhados.length === 1 ? " módulo falhado." : " módulos falhados.")) +
-      " Passa-se cada módulo com " + EXAME.minimo + " acertos em " + EXAME.porCategoria + ".";
+      " Passa-se cada módulo com metade dos acertos.";
 
     show("resultExame");
     show("btnRever");
@@ -595,7 +692,9 @@
       ? retomavel.perguntas.filter(function (q) { return q.escolhaIdx >= 0; }).length
       : retomavel.certas + retomavel.erradas;
     var resta = exame ? retomavel.fim - Date.now() : 0;
-    $("retomarTitulo").textContent = exame ? "▶ Tens um exame a meio" : "▶ Tens um teste a meio";
+    $("retomarTitulo").textContent = exame
+      ? "▶ Tens um exame a meio" + (retomavel.exameId ? " (" + retomavel.cat + ")" : "")
+      : "▶ Tens um teste a meio";
     $("retomarDetalhe").textContent = exame
       ? (resta > 0 ? mmss(resta) + " restantes" : "tempo esgotado") +
         " · " + resp + " de " + retomavel.total + " respondidas"
@@ -634,6 +733,7 @@
       certas: test.certas, erradas: test.erradas,
       total: test.total, pct: pct, concluido: test.concluido,
       modo: test.modo || "treino",
+      exameId: test.exameId || null,
       veredicto: test.veredicto || null,
       minutos: test.minutos || null
     });
@@ -656,7 +756,8 @@
       esq.innerHTML = '<div>' + dstr + '</div><div class="h-cat"></div>';
       var VER = { aprovado: "aprovado", oral: "vais a oral", reprovado: "reprovado" };
       esq.querySelector(".h-cat").textContent = it.veredicto
-        ? "🎓 Exame · " + VER[it.veredicto] + (it.minutos ? " · " + it.minutos + " min" : "")
+        ? "🎓 " + (it.exameId ? it.cat : "Exame") + " · " + VER[it.veredicto] +
+          (it.minutos ? " · " + it.minutos + " min" : "")
         : it.cat + estado;
       var dir = document.createElement("div");
       dir.className = "h-score" + (it.veredicto ? " ver-" + it.veredicto : "");
@@ -690,6 +791,7 @@
     $("themeToggle").addEventListener("click", alternarTema);
     $("btnIniciar").addEventListener("click", iniciarTeste);
     $("btnExame").addEventListener("click", iniciarExame);
+    $("selExame").addEventListener("change", descreverExame);
     $("btnRever").addEventListener("click", reverExame);
     $("btnMapa").addEventListener("click", alternarMapa);
     $("btnAnterior").addEventListener("click", anterior);
