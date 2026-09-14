@@ -40,14 +40,14 @@ no topo volta a bloquear.
 Extras: filtrar por matéria, baralhar perguntas/opções, histórico dos últimos
 testes (guardado só no teu browser) e tema claro/escuro (botão 🌙 no topo).
 
-## Matérias incluídas (242 perguntas)
+## Matérias incluídas (287 perguntas)
 
 | Matéria | Perguntas |
 |---|---|
-| Incêndios · PCI (A-VI/1.2) | 96 |
-| Primeiros Socorros (A-VI/1.3) | 50 |
-| Responsabilidades Sociais (A-VI/1.4) | 50 |
-| Sobrevivência (A-VI/1.1) | 46 |
+| Incêndios · PCI (A-VI/1.2) | 98 |
+| Primeiros Socorros (A-VI/1.3) | 69 |
+| Responsabilidades Sociais (A-VI/1.4) | 66 |
+| Sobrevivência (A-VI/1.1) | 54 |
 
 ## Exames concretos
 
@@ -58,6 +58,8 @@ disponíveis:
 |---|---|
 | Exame SB 3.0 | 43 (9 + 10 + 12 + 12) |
 | Exame SB 3.1 | 40 (10 de cada módulo) |
+| Exame SB 3.2 | 40 (10 de cada módulo) |
+| Exame SB 4.1 | 40 (10 de cada módulo) |
 
 Há duas formas de o fazer:
 
@@ -87,7 +89,8 @@ exames. Depois declara o exame no `meta`:
 ```json
 "exames": [
   { "id": "sb30", "nome": "Exame SB 3.0", "descricao": "...", "total": 43 },
-  { "id": "sb31", "nome": "Exame SB 3.1", "descricao": "...", "total": 40 }
+  { "id": "sb31", "nome": "Exame SB 3.1", "descricao": "...", "total": 40 },
+  { "id": "sb32", "nome": "Exame SB 3.2", "descricao": "...", "total": 40 }
 ]
 ```
 
@@ -174,7 +177,7 @@ Guarda o ficheiro e corre `node tools/pack.js` para voltar a cifrar o conteúdo 
 depois é que a alteração aparece na app. (Uma imagem nova é `private/images/xxx.png` e
 entra no pacote sozinha; o campo `"imagem"` continua a ser `"images/xxx.png"`.)
 
-**Números das perguntas:** cada pergunta tem um **número único e fixo** (1 a 242),
+**Números das perguntas:** cada pergunta tem um **número único e fixo** (1 a 287),
 mostrado em cada pergunta como **"N.º 45"** — ao lado da matéria. Esse número **não
 muda** quando as perguntas são baralhadas, por isso serve para identificar uma pergunta
 em concreto (ex.: *"a pergunta N.º 45 tem a resposta errada"*). Não confundir com o
